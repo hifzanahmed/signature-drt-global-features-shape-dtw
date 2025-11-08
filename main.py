@@ -3,14 +3,14 @@ from verification.signature_verification import SignatureVerificationTraining
 import os
 
 def main():
-    location_of_training_signature = 'C:/Users/hifza/workspace/Signature Dataset/signatures_1/original_1_'
+    location_of_training_signature = 'C:/Users/hifza/workspace/Signature Dataset/signatures_4/original_4_'
     size_of_training_signature = 6
-    location_of_test_signature = 'C:/Users/hifza/workspace/Signature Dataset/signatures_1/original_1_'
+    location_of_test_signature = 'C:/Users/hifza/workspace/Signature Dataset/signatures_4/forgeries_4_'
     # Training Phase
     s1 = SignatureTraining.training_genuine_with_shape_dtw(location_of_training_signature, size_of_training_signature)  
     # Verification Phase of input test signature 
     i = 1
-    while False:
+    while True:
         test_signature = f"{location_of_test_signature}{i}.png"
         test_signature_path = os.path.join(test_signature)
     
@@ -18,13 +18,13 @@ def main():
         if not os.path.exists(test_signature_path):
             break
         s2 = SignatureVerificationTraining.verifiy_test_signature_with_shape_dtw(test_signature_path)
-        # Decision Making: calculating the score and comparing it with a threshold value
         i += 1
-        score_ratio = abs(s2) / abs(s1)
-        if score_ratio > 1:  
-            print(f"{score_ratio};Genuine")
+        # Decision Making: calculating the score and comparing it with a threshold value
+        score = s2 / s1
+        if score <= 1.15:
+            print(f"{score};Genuine")
         else:
-            print(f"{score_ratio};Forged")
+            print(f"{score};Forged")
 
 if __name__ == "__main__":
     main()

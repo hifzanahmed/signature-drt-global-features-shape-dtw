@@ -1,55 +1,50 @@
 from utils.utilities import Utilities
+import numpy as np
 import cv2
 
 class ImageProcessor:
-    def read_and_preprocess(location):
-        # Load an image from the specified location
+    def read_and_preprocess(image_path, enhance_contrast=True, apply_median=True,):
+        """
+        Complete preprocessing pipeline for signature images.
+        Steps:
+            1. Load image
+            2. Convert to grayscale
+            3. Optional CLAHE contrast enhancement
+            4. Normalize to [0,1]
+            5. Crop and resize while preserving aspect ratio
+            6. Optional median filtering
+        Returns:
+            np.ndarray: Preprocessed image as float32 in [0,1]
+        """
         utils = Utilities()
-        signature = utils.load_image(location)
-
-        # Check if image is loaded correctly
+    
+        # Step 1: Load image
+        signature = utils.load_image(image_path)
         if signature is None:
             return None
+        # Step 2: Convert to grayscale
+        img_gray = cv2.cvtColor(signature, cv2.COLOR_BGR2GRAY)
+        #cv2.imshow('Converted Signature in grayscale', img_gray)
+
+        # Step 3: Optional contrast enhancement (CLAHE)
+        if enhance_contrast:
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+            img_gray = clahe.apply(img_gray)
+        # Step 4: Normalize to [0,1]
+        img_gray = img_gray.astype(np.float32) / 255.0
+        # Step 5: Crop and resize with aspect ratio preserved
+        img_cropped = utils.crop_and_resize_signature(img_gray)
+    
+        # Step 6: Optional median filter to reduce noise
+        if apply_median:
+            img_filtered = cv2.medianBlur((img_cropped * 255).astype(np.uint8), 3)
+            img_filtered = img_filtered.astype(np.float32) / 255.0
         else:
-            # Step 1: Display the original image
-            # Step 2: Convert to grayscale (Otsu needs grayscale input)
-            img_gray = cv2.cvtColor(signature, cv2.COLOR_BGR2GRAY)
-            #cv2.imshow('Converted Signature in grayscale', img_gray)
-            # Wait until any key is pressed
-            #cv2.waitKey(0)
-            # Close the window
-            #cv2.destroyAllWindows()
-
-            # Step 3: Apply Otsu's thresholding to find threshold and convert to binary
-            threshold_value, img_binary = cv2.threshold(
-                img_gray, 
-                0,                   # Threshold ignored for Otsu
-                255,                 # Max value for the binary image
-                cv2.THRESH_BINARY + cv2.THRESH_OTSU
-            )
-
-            #print(f"Optimal threshold found by Otsu's method: {threshold_value}")
-
-            # Step 4: img_binary is your Otsu thresholded image (0 and 255 pixels)
-            img_inverted = cv2.bitwise_not(img_binary)
-            #cv2.imshow('Converted Signature in binary', img_inverted)
-            # Wait until any key is pressed
-            #cv2.waitKey(0)
-            # Close the window
-            #cv2.destroyAllWindows()
-
-            # Step 5: Crop the image to remove unnecessary white space
-            img_cropped = utils.crop_and_resize_signature(img_inverted)
-            #cv2.imshow('Cropped Signature', img_cropped)   
-            # Wait until any key is pressed
-            #cv2.waitKey(0)
-            # Close the window
-            #cv2.destroyAllWindows()
-            # Median Filter - Assuming `binary_img` is your binary image array (with 0 and 255)
-            filtered_img = cv2.medianBlur(img_cropped, 3)  # kernel size can be 3, 5, 7, etc.
-            #cv2.imshow('Filtered Signature', filtered_img)   
-            # Wait until any key is pressed
-            #cv2.waitKey(0)
-            # Close the window
-            #cv2.destroyAllWindows()
-            return filtered_img
+            img_filtered = img_cropped
+    
+        #cv2.imshow('Converted Signature in grayscale', img_filtered)
+        # Wait until any key is pressed
+        #cv2.waitKey(0)
+        # Close the window
+        #cv2.destroyAllWindows()
+        return img_filtered

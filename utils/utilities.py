@@ -1,152 +1,151 @@
 import numpy as np
 import cv2
-from tslearn.metrics import soft_dtw
+from shapedtw import shape_dtw
 from skimage.transform import radon
+from shapedtw.shapeDescriptors import (
+    RawSubsequenceDescriptor, PAADescriptor, DWTDescriptor)
 
 class Utilities:
     @staticmethod
     def load_image(image_path):
         import cv2
-        # Load the image
+        # Load/Read the image from the specified path
         signature = cv2.imread(image_path)
         
         # Check if image is loaded correctly
         if signature is None:
             print("Error: Signature Image not found or unable to load.")
             return None
-        else:
-            #print("Signature Image loaded successfully.")
-            # Show the image
-            #cv2.imshow("Signature Image", signature)
-            #cv2.waitKey(0)
-            #cv2.destroyAllWindows()
-            return signature
+        return signature
     
     @staticmethod
-    def crop_and_resize_signature(binary_img):
+    def crop_and_resize_signature(image):
         """
-        Crops the binary image by removing all-zero rows and columns.
+        Crops the image by removing zero rows/columns and resizes to target size.
+        Preserves aspect ratio by padding with zeros.
         Args:
-        binary_img (np.ndarray): 2D numpy array where 1s represent signature, 0s are background.
+            img (np.ndarray): 2D array representing the signature.
+            size (tuple): Target size (width, height)
         Returns:
-        np.ndarray: Cropped binary image.
+            np.ndarray: Cropped and resized image as float32 in [0,1]
         """
-        assert binary_img.ndim == 2, "Input must be a 2D array"
-        # Find rows and columns with at least one '1'
-        rows = np.any(binary_img, axis=1)
-        cols = np.any(binary_img, axis=0)
-        # Crop the image
-        cropped_img = binary_img[rows][:, cols]
-        return Utilities.resize_image(cropped_img)
+        assert image.ndim == 2, "Input must be a 2D array"
+        
+        # Identify non-zero rows and columns
+        rows = np.any(image, axis=1)
+        cols = np.any(image, axis=0)
+        cropped_img = image[np.ix_(rows, cols)]
+        
+        # Convert to uint8 for OpenCV operations
+        cropped_img_uint8 = (cropped_img * 255).astype(np.uint8) if image.max() <= 1.0 else cropped_img.astype(np.uint8)
+        
+        # Resize with aspect ratio preservation
+        resized_img = Utilities.resize_image(cropped_img_uint8)
+        
+        # Normalize back to [0,1]
+        return resized_img.astype(np.float32) / 255.0
     
     @staticmethod
     def resize_image(img, size=(300, 150)):
-        return cv2.resize(img, size, interpolation=cv2.INTER_AREA)
+        h, w = img.shape[:2]
+        scale = min(size[0]/w, size[1]/h)
+        new_w, new_h = int(w*scale), int(h*scale)
+        resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    
+        # Pad to fit target size
+        top = (size[1]-new_h)//2
+        bottom = size[1]-new_h-top
+        left = (size[0]-new_w)//2
+        right = size[0]-new_w-left
+        padded = cv2.copyMakeBorder(resized, top, bottom, left, right, cv2.BORDER_CONSTANT, value=0)
+        return padded
     
     @staticmethod
-    def extract_features_discrete_radon_transform(cropped_img):
-        processed_image_features = Utilities.horizontal_vertical_projection_discrete_radon_transform(cropped_img)
-        #print("Horizontal and Vertical Projection:", processed_image_features.size)
-        return processed_image_features
-    
-    @staticmethod
-    def horizontal_vertical_projection_discrete_radon_transform(binary_img):
-        horizontal_proj, vertical_proj = Utilities.discrete_radon_transform(binary_img)
-        return np.concatenate((horizontal_proj, vertical_proj))
-    
-    @staticmethod
-    def discrete_radon_transform(binary_img):
+    def extract_features_discrete_radon_transform(filtered_img, angles=None):
         """
-        Compute discrete Radon transform (DRT) projections at 0° and 90°.
-
-        Parameters
-        ----------
-        binary_img : np.ndarray
-            Binary or grayscale 2D image.
-
-        Returns
-        -------
-        horizontal_projection : np.ndarray
-            Radon projection at 0°.
-        vertical_projection : np.ndarray
-            Radon projection at 90°.
-        """
-        # Define the angles for the transform
-        angles = [0, 90]
-        
-        # Compute the discrete Radon transform
-        sinogram = radon(binary_img, theta=angles, circle=False)
-
-        # sinogram[:, 0] corresponds to 0° projection,
-        # sinogram[:, 1] corresponds to 90° projection
-        horizontal_projection = sinogram[:, 0]
-        vertical_projection = sinogram[:, 1]
-
-        return horizontal_projection, vertical_projection
-    
-    @staticmethod
-    def compute_training_score(signatures):
-        """
-        Computes S1: average Soft-DTW distance between all pairs of genuine signatures.
+        Extract global DRT features from a preprocessed image.
         Args:
-            signatures (list of np.ndarray): List of K signature samples (1D arrays)
+            img (np.ndarray): Preprocessed grayscale image [0,1]
+            angles (np.ndarray): Angles in degrees to compute projections
         Returns:
-            float: Average Soft-DTW distance (S1)
+            np.ndarray: 1D feature vector concatenating projections
         """
-        K = len(signatures)
+        if angles is None:
+            angles = np.linspace(0, 180, 12, endpoint=False) # 12 angles from 0 to 180 degrees
+    
+        features = []
+        for angle in angles:
+            projection = radon(filtered_img, theta=[angle], circle=False)
+            projection = projection.flatten()  # 1D vector
+            features.append(projection)
+    
+        features_vector = np.concatenate(features)
+        return features_vector
+    
+    @staticmethod
+    def compute_training_score(signatures, subsequence_width=15, descriptor_type="raw"):
+        """
+        Computes average ShapeDTW distance (S1) among genuine signatures.
+        Args:
+            signatures (list of np.ndarray): list of 1D DRT feature vectors
+            window_size (int): local shape window length
+        Returns:
+            float: average ShapeDTW distance (S1)
+        """
+        # 🔹 Create the correct ShapeDescriptor object
+        if descriptor_type == "raw":
+            shape_desc = RawSubsequenceDescriptor()
+        else:
+            raise ValueError(f"Unsupported shape descriptor type: {descriptor_type}")
+    
+        normalized_signatures = [sig / np.linalg.norm(sig) for sig in signatures]
+
+        K = len(normalized_signatures)
         dist_matrix = np.zeros((K, K))
-        utils = Utilities()  
-        print("signature list size:", K)
+        print(f"🔹 Computing ShapeDTW for {K} genuine samples...")
+
         for i in range(K):
             for j in range(i + 1, K):
-                d = utils.soft_dtw(
-                    signatures[i].reshape(-1, 1),
-                    signatures[j].reshape(-1, 1),
-                    gamma=0.1
+                result = shape_dtw(
+                    normalized_signatures[i].reshape(-1, 1),
+                    normalized_signatures[j].reshape(-1, 1),
+                    subsequence_width=subsequence_width,
+                    shape_descriptor=shape_desc  
                 )
-                dist_matrix[i, j] = dist_matrix[j, i] = d
+                dist = result.distance
+                dist_matrix[i, j] = dist_matrix[j, i] = dist
 
-        #print("Pairwise Soft-DTW distance matrix:\n", dist_matrix)
-        # Average distance between all unique pairs (i < j)
-        avg_distance = np.sum(np.triu(dist_matrix, k=1)) / (K * (K - 1) / 2)
+        avg_distance = np.sum(np.triu(dist_matrix, 1)) / (K * (K - 1) / 2)
         return avg_distance
     
     @staticmethod
-    def compute_verification_score(test_signature, genuine_signatures):
+    def compute_verification_score(test_signature, genuine_signatures, subsequence_width=15, descriptor_type="raw"):
         """
-        Computes S2: average Soft-DTW distance between a test signature and all genuine signatures.
-        Args:
-            test_signature (np.ndarray): 1D array of the test signature features.
-            genuine_signatures (list of np.ndarray): List of genuine signature features.
-            gamma (float): Soft-DTW smoothing parameter.
-        Returns:
-            float: Average Soft-DTW distance (S2 score).
+        Computes average ShapeDTW distance (S2) between a test signature and all genuine ones.
         """
-        test_signature = test_signature.astype(np.float32)
-        test_signature = (test_signature - np.min(test_signature)) / (np.max(test_signature) - np.min(test_signature) + 1e-8)
-
-        K = len(genuine_signatures)
-        if K == 0:
-            return 0.0  # Avoid division by zero
-
-        utils = Utilities()
-        total_dist = 0.0
-        gamma = 0.1
-
-        for i in range(K):
-            dist = utils.soft_dtw(
-                test_signature.reshape(-1, 1),
-                genuine_signatures[i].reshape(-1, 1),
-                gamma=gamma
+        if len(genuine_signatures) == 0:
+            raise ValueError("No genuine signatures found for verification!")
+    
+           # 🔹 Create the correct ShapeDescriptor object
+        if descriptor_type == "raw":
+            shape_desc = RawSubsequenceDescriptor()
+        else:
+            raise ValueError(f"Unsupported shape descriptor type: {descriptor_type}")
+        
+        # 🔹 Normalize test and genuine signatures
+        normalized_test = test_signature / np.linalg.norm(test_signature)
+        normalized_genuine = [sig / np.linalg.norm(sig) for sig in genuine_signatures]
+        
+        total_dist = 0
+        for ref in normalized_genuine:
+            result = shape_dtw(
+                normalized_test.reshape(-1, 1),
+                ref.reshape(-1, 1),
+                subsequence_width=subsequence_width, 
+                shape_descriptor=shape_desc 
             )
+            dist = result.distance
             total_dist += dist
 
-        avg_dist = total_dist / K
+        avg_dist = total_dist / len(normalized_genuine)
         return avg_dist
-
-    @staticmethod
-    def soft_dtw(signature1, signature2, gamma=0.1):
-        # Soft-DTW gamma=1.0 parameter (controls smoothness)
-        # Compute soft-DTW distance
-        soft_dtw_distance = soft_dtw(signature1.reshape(-1, 1), signature2.reshape(-1, 1), gamma=gamma)
-        return soft_dtw_distance
