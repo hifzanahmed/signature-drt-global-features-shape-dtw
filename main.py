@@ -3,9 +3,9 @@ from verification.signature_verification import SignatureVerificationTraining
 import os
 
 def main():
-    location_of_training_signature = 'C:/Users/hifza/workspace/Signature Dataset/signatures_4/original_4_'
+    location_of_training_signature = 'C:/Users/hifza/workspace/Signature Dataset/signatures_1/original_1_'
     size_of_training_signature = 6
-    location_of_test_signature = 'C:/Users/hifza/workspace/Signature Dataset/signatures_4/forgeries_4_'
+    location_of_test_signature = 'C:/Users/hifza/workspace/Signature Dataset/signatures_1/original_1_'
     # Training Phase
     s1 = SignatureTraining.training_genuine_with_shape_dtw(location_of_training_signature, size_of_training_signature)  
     # Verification Phase of input test signature 
@@ -22,9 +22,9 @@ def main():
         # Decision Making: calculating the score and comparing it with a threshold value
         score = s2 / s1
         if score <= 1.15:
-            print(f"{score};Genuine")
+            print(f"{score:.4f};Genuine")
         else:
-            print(f"{score};Forged")
+            print(f"{score:.4f};Forged")
 
 if __name__ == "__main__":
     main()

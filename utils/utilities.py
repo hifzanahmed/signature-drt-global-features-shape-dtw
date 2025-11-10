@@ -92,7 +92,6 @@ class Utilities:
         Returns:
             float: average ShapeDTW distance (S1)
         """
-        # 🔹 Create the correct ShapeDescriptor object
         if descriptor_type == "raw":
             shape_desc = RawSubsequenceDescriptor()
         else:
@@ -102,7 +101,6 @@ class Utilities:
 
         K = len(normalized_signatures)
         dist_matrix = np.zeros((K, K))
-        print(f"🔹 Computing ShapeDTW for {K} genuine samples...")
 
         for i in range(K):
             for j in range(i + 1, K):
@@ -126,13 +124,12 @@ class Utilities:
         if len(genuine_signatures) == 0:
             raise ValueError("No genuine signatures found for verification!")
     
-           # 🔹 Create the correct ShapeDescriptor object
         if descriptor_type == "raw":
             shape_desc = RawSubsequenceDescriptor()
         else:
             raise ValueError(f"Unsupported shape descriptor type: {descriptor_type}")
         
-        # 🔹 Normalize test and genuine signatures
+        # Normalize test and genuine signatures
         normalized_test = test_signature / np.linalg.norm(test_signature)
         normalized_genuine = [sig / np.linalg.norm(sig) for sig in genuine_signatures]
         
