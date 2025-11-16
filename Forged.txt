@@ -158,3 +158,27 @@ Dada - Paper
 1.1631;Forged
 2.4529;Forged
 3.0541;Forged
+
+Amarnath - Paper
+1.3978;Forged
+1.7191;Forged
+1.6579;Forged
+2.1046;Forged
+1.6322;Forged
+1.6862;Forged
+1.9759;Forged
+1.5800;Forged
+2.0144;Forged
+1.8420;Forged
+2.1209;Forged
+1.7882;Forged
+2.2043;Forged
+1.3349;Forged
+1.4010;Forged
+1.4656;Forged
+1.7811;Forged
+1.6189;Forged
+1.9461;Forged
+2.0559;Forged
+
+Neha - Digital
