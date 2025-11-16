@@ -182,3 +182,23 @@ Amarnath - Paper
 2.0559;Forged
 
 Neha - Digital
+1.9122;Forged
+1.9130;Forged
+1.9116;Forged
+1.9102;Forged
+1.9103;Forged
+1.9118;Forged
+1.9144;Forged
+1.9119;Forged
+1.9120;Forged
+1.9128;Forged
+1.9125;Forged
+1.9126;Forged
+1.9120;Forged
+1.9127;Forged
+1.9125;Forged
+1.9148;Forged
+1.9120;Forged
+1.9145;Forged
+1.9144;Forged
+1.9141;Forged

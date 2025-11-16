@@ -7,7 +7,7 @@ def main():
     location_of_training_signature = 'C:/Users/hifza/workspace/Signature Dataset/Neha/signature'
     size_of_training_signature = 6
     #location_of_test_signature = 'C:/Users/hifza/workspace/Signature Dataset/signatures_6/original_6_'
-    location_of_test_signature = 'C:/Users/hifza/workspace/Signature Dataset/Neha/signature'
+    location_of_test_signature = 'C:/Users/hifza/workspace/Signature Dataset/Neha/Forged/signature'
     # Training Phase
     s1 = SignatureTraining.training_genuine_with_shape_dtw(location_of_training_signature, size_of_training_signature)  
     # Verification Phase of input test signature 
